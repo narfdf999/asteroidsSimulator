@@ -5,6 +5,7 @@
 #include <fstream>
 #include <string>
 #include <random>
+#include <iomanip>
 
 using namespace std;
 
@@ -15,11 +16,11 @@ struct objetos
   vector<double> m;
 } ;
 
-void fuerzaGravitatoria(double x1, double y1, double z1, double m1, double x2, double y2, double z2, double m2, &vector<double> resultado)
+int fuerzaGravitatoria(double x1, double y1, double z1, double m1, double x2, double y2, double z2, double m2, vector<double> &resultado)
 {
     //Si ambos objetos son los mismos entonces devolver 0
     if((x1==x2)&&(y1==y2)&&(z1==z2)&&(m1==m2))
-        return 0;
+        return -1;
     //Constante de gravitacion universal
     double G = 6.674e-11;
     //Calculo de la parte escalar (G*m1*m2)/||pj-pi||^3
@@ -28,44 +29,57 @@ void fuerzaGravitatoria(double x1, double y1, double z1, double m1, double x2, d
     resultado.push_back((x2-x1)*pEscalar);
     resultado.push_back((y2-y1)*pEscalar);
     resultado.push_back((z2-z1)*pEscalar);
+    return 0;
 }
 
-void vectorAceleracion(double x1, double y1, double z1, double m1, &struct objetos O, &vector<double> resultado)
+void vectorAceleracion(double x1, double y1, double z1, double m1, struct objetos &O, vector<double> &resultado)
 {
     //bucle for homologo al sumatorio de la formula
-    for(int i = 0; i < O.p[0].size(); i++){
+    for(long unsigned int i = 0; i < O.p[0].size(); i++){
         //Se calcula la fuerza que ejerce uno sobre el otro en forma vectorial
         vector<double> fuerza;
-        fuerzaGravitatoria(x1, y1, z1, m1, O.p[0][i], O.p[1][i], O.p[2][i], O.m[i], fuerza)
+        int r = fuerzaGravitatoria(x1, y1, z1, m1, O.p[0][i], O.p[1][i], O.p[2][i], O.m[i], fuerza);
         //Se añade al resultado final, como indica el sumatorio
-        transform(resultado.begin(), resultado.end(), fuerza.begin(), resultado.begin(), plus<double>())
+        if(r == 0){
+            transform(resultado.begin(), resultado.end(), fuerza.begin(), resultado.begin(), plus<double>());
+        }
     }
     //Se reescala por 1/m1
-    double k = 1.0/m1
+    double k = 1.0/m1;
     transform(resultado.begin(), resultado.end(), resultado.begin(), [k](double &c){ return c/k; });
 }
 
-void colisiones(&struct objetos universo)
+void colisiones(struct objetos &universo)
 {
-    for (int j = 0; j < universo.p[0].size(); j++){
-        for (int k = 0; k < universo.p[0].size(); k++){
-            if((j != k)&&((pow(universo.p[0][k]-universo.p[0][j], 2.0) + pow(universo.p[1][k]-universo.p[1][j], 2.0) + pow(universo.p[2][k]-universo.p[2][j], 2.0)) < 1)){//Si 2 objetos son distintos y colisionan
-                universo.m[j] += universo.m[j]; //Se suman sus masas
-                //Se suman las velocidades y se destruye el segundo objeto
-                for(int l = 0; l < 3; l++){
-                    //Suma de velocidades
-                    universo.v[l][j] += universo.v[l][j];
-                    //destruccion del segundo objeto
-                    universo.p[l].erase(universo.p[l].begin()+k);
-                    universo.v[l].erase(universo.v[l].begin()+k);
+    for (long unsigned int j = 0; j < universo.p[0].size(); j++){
+        if(j < universo.p[0].size()-1){
+            for (long unsigned int k = j+1; k < universo.p[0].size(); k++){
+                if((j != k)&&((pow(universo.p[0][k]-universo.p[0][j], 2.0) + pow(universo.p[1][k]-universo.p[1][j], 2.0) + pow(universo.p[2][k]-universo.p[2][j], 2.0)) < 1)){//Si 2 objetos son distintos y colisionan
+                    //cout << "Se va a eliminar asteroide " << k << endl;
+                    universo.m[j] += universo.m[k]; //Se suman sus masas
+                    //cout << "Masa nueva de asteroide " << j << " " << universo.m[j] << endl;
+                    //Se suman las velocidades y se destruye el segundo objeto
+                    for(int l = 0; l < 3; l++){
+                        //Suma de velocidades
+                        //cout << "Velocidad " << l << " de " << j << " " << universo.v[l][j] << endl;
+                        //cout << "Velocidad " << l << " de " << k << " " << universo.v[l][k] << endl;
+                        universo.v[l][j] += universo.v[l][k];
+                        //cout << "Velocidad " << l << " nueva de asteroide " << j << " " << universo.v[l][j] << endl;
+                        //destruccion del segundo objeto
+                        universo.p[l].erase(universo.p[l].begin()+k);
+                        universo.v[l].erase(universo.v[l].begin()+k);
+                    }
                     universo.m.erase(universo.m.begin()+k);
+                    //Se echa hacia atrás el contador k para no saltarse un asteroide
+                    k --;
+                    //cout << "Numero total de asteroides " << universo.p[0].size() << endl;
                 }
             }
         }
     }
 }
 
-void guardarDatos(&struct objetos datos, string archivo, double size_enclosure, double time_step, int num_objects)
+void guardarDatos(struct objetos &datos, string archivo, double size_enclosure, double time_step, int num_objects)
 {
     ofstream Resultados(archivo);
 
@@ -76,7 +90,7 @@ void guardarDatos(&struct objetos datos, string archivo, double size_enclosure, 
     Resultados << size_enclosure << " " << time_step << " " << num_objects << endl;
 
     //Cuerpo
-    for (int i = 0; i < datos.p[0].size(); i++){
+    for (long unsigned int i = 0; i < datos.p[0].size(); i++){
         //Posiciones
         for(int j = 0; j < 3; j++){
             Resultados << datos.p[j][i] << " ";
@@ -104,12 +118,6 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
     //elementos
     struct objetos universo;
 
-    /*
-    //Cambiar la semilla
-    uint64_t newSeed = ;
-    gen64.seed(newSeed);
-    */
-
     //se generan de forma aleatoria los elementos
     for(int i = 0; i < num_objects; i++){
         //posiciones y velocidades
@@ -124,20 +132,31 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
     colisiones(universo);
 
     //Almacenar configuracion inicial
-    guardarDatos(universo, "init_config.txt", size_enclosure, time_step, num_objects);
+    guardarDatos(universo, "init_config.txt", size_enclosure, time_step, num_objects);
 
     //bucle de la simulation
     for(int i = 0; i < num_iterations; i++){
+
+        //cout << "Iteracion " << i << endl;
+
         //se crea la siguiente iteracion
         struct objetos newIt;
-        for (int j = 0; j < universo.p[0].size(); j++){
+
+        //cout << "Creado nuevo universo" << endl;
+
+        for (long unsigned int j = 0; j < universo.p[0].size(); j++){
+            //cout << "Calculando vector de aceleracion de asteroide " << j << endl;
             //Calculo del vector aceleracion
-            vector<double> aceleracion(0.0, 0.0, 0.0);
+            vector<double> aceleracion(3, 0.0);
             vectorAceleracion(universo.p[0][j], universo.p[1][j], universo.p[2][j], universo.m[j], universo, aceleracion);
+            //cout << "Vector aceleracion calculado" << endl;
             //Calculo de las nuevas velocidades y posiciones en los 3 ejes
             for(int k = 0; k < 3; k++){
                 newIt.v[k].push_back(universo.v[k][j] + aceleracion[k]*time_step);
+                //cout << "Nueva velocidad " << k << " de asteroide " << j << " " << newIt.v[k][j] << endl;
                 newIt.p[k].push_back(universo.p[k][j] + newIt.v[k][j]*time_step);
+                //cout << "Nueva posicion " << k << " de asteroide " << j << " " << newIt.p[k][j] << endl;
+                //cout << "Calculando rebotes" << endl;
                 //Calculo de rebotes
                 if(newIt.p[k][j] < 0.0){
                     newIt.p[k][j] = 0.0;
@@ -147,45 +166,51 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
                     newIt.p[k][j] = size_enclosure;
                     newIt.v[k][j] *= -1.0;
                 }
+                //cout << "rebotes calculados" << endl;
             }
+            //cout << "Nueva masa de asteroide " << j << " " << universo.m[j] << endl;;
             //Cargar las masas en la nueva iteracion
-            newIt.m[j] = universo.m[j];
+            newIt.m.push_back(universo.m[j]);
         }
+        //cout << "Calculando colisiones" << endl;
         //Calculo de colisiones
         colisiones(newIt);
+        //cout << "Colisiones calculadas" << endl;
 
+        //cout << "Actualizando universo" << endl;
         //Actualizacion del universo
         universo = newIt;
+        //cout << "Universo actualizado" << endl;
     }
     //Almacenar configuracion final
-    guardarDatos(universo, "final_config.txt", size_enclosure, time_step, num_objects);
+    guardarDatos(universo, "final_config.txt", size_enclosure, time_step, int(universo.p[0].size()));
 }
 
-int main(int argc, char** argv)
+int main(int argc, char *argv[])
 {
-    cout << "sim-soa invoked with " << argc << "parameters." << endl;
+    cout << "sim-soa invoked with " << argc-1 << " parameters" << endl;
 
-    string parametros[5] = ["num_objects", "num_iterations", "random_seed", "size_enclosure", "time_step"];
+    string parametros[5] = {"num_objects", "num_iterations", "random_seed", "size_enclosure", "time_step"};
 
     for(int i = 0; i < 5; i++){
         cout << parametros[i] << ": ";
-        if(i < argc)
-            cout << argv[i] << endl;
+        if(i < argc-1)
+            cout << argv[i+1] << endl;
         else
             cout << "?" << endl;
     }
 
-    if(argc != 5){
-        perror("Error: Numero de comandos incorrecto");
-        return -1;
+    if(argc-1 != 5){
+        cout << "Error: Numero de comandos incorrecto" << endl;
+        exit(-1);
     }
 
-    if(argv[0] <= 0 && argv[1] <= 0 && argv[3] <= 0 && argv[4] <= 0){
-        perror("Error: Algun argumento invalido");
-        return -2;
+    if(atoi(argv[1]) <= 0 || atoi(argv[2]) <= 0 || atof(argv[4]) <= 0.0 || atof(argv[5]) <= 0.0){
+        cout << "Error: Algun argumento invalido" << endl;
+        exit(-2);
     }
 
-    simulation(argv[0], argv[1], argv[2], argv[3], argv[4]);
+    simulation(atoi(argv[1]), atoi(argv[2]), atoi(argv[3]), atof(argv[4]), atof(argv[5]));
 
     return 0;
 }
