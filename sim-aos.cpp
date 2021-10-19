@@ -9,11 +9,11 @@
 
 using namespace std;
 
-struct objetos
+struct objeto
 {
-  vector<double> p[3];
-  vector<double> v[3];
-  vector<double> m;
+  double p[3];
+  double v[3];
+  double m;
 } ;
 
 int fuerzaGravitatoria(double x1, double y1, double z1, double m1, double x2, double y2, double z2, double m2, vector<double> &resultado)
@@ -39,13 +39,13 @@ int fuerzaGravitatoria(double x1, double y1, double z1, double m1, double x2, do
     return 0;
 }
 
-void vectorAceleracion(double x1, double y1, double z1, double m1, struct objetos &O, vector<double> &resultado)
+void vectorAceleracion(double x1, double y1, double z1, double m1, vector<objeto> &O, vector<double> &resultado)
 {
     //bucle for homologo al sumatorio de la formula
-    for(long unsigned int i = 0; i < O.p[0].size(); i++){
+    for(long unsigned int i = 0; i < O.size(); i++){
         //Se calcula la fuerza que ejerce uno sobre el otro en forma vectorial
         vector<double> fuerza;
-        int r = fuerzaGravitatoria(x1, y1, z1, m1, O.p[0][i], O.p[1][i], O.p[2][i], O.m[i], fuerza);
+        int r = fuerzaGravitatoria(x1, y1, z1, m1, O[i].p[0], O[i].p[1], O[i].p[2], O[i].m, fuerza);
         //Se añade al resultado final, como indica el sumatorio
         if(r == 0){
             transform(resultado.begin(), resultado.end(), fuerza.begin(), resultado.begin(), plus<double>());
@@ -58,27 +58,25 @@ void vectorAceleracion(double x1, double y1, double z1, double m1, struct objeto
     //cout << "FINAL escala " << k << " resultado (" << resultado[0] <<  ", " << resultado[1] <<  ", " << resultado[2] <<  ")" << endl;
 }
 
-void colisiones(struct objetos &universo)
+void colisiones(vector<objeto> &universo)
 {
-    for (long unsigned int j = 0; j < universo.p[0].size(); j++){
-        if(j < universo.p[0].size()-1){
-            for (long unsigned int k = j+1; k < universo.p[0].size(); k++){
-                if((j != k)&&((pow(universo.p[0][k]-universo.p[0][j], 2.0) + pow(universo.p[1][k]-universo.p[1][j], 2.0) + pow(universo.p[2][k]-universo.p[2][j], 2.0)) < 1)){//Si 2 objetos son distintos y colisionan
+    for (long unsigned int j = 0; j < universo.size(); j++){
+        if(j < universo.size()-1){
+            for (long unsigned int k = j+1; k < universo.size(); k++){
+                if((j != k)&&((pow(universo[k].p[0]-universo[j].p[0], 2.0) + pow(universo[k].p[1]-universo[j].p[1], 2.0) + pow(universo[k].p[2]-universo[j].p[2], 2.0)) < 1)){//Si 2 objetos son distintos y colisionan
                     //cout << "Se va a eliminar asteroide " << k << endl;
-                    universo.m[j] += universo.m[k]; //Se suman sus masas
+                    universo[j].m += universo[k].m; //Se suman sus masas
                     //cout << "Masa nueva de asteroide " << j << " " << universo.m[j] << endl;
                     //Se suman las velocidades y se destruye el segundo objeto
                     for(int l = 0; l < 3; l++){
                         //Suma de velocidades
                         //cout << "Velocidad " << l << " de " << j << " " << universo.v[l][j] << endl;
                         //cout << "Velocidad " << l << " de " << k << " " << universo.v[l][k] << endl;
-                        universo.v[l][j] += universo.v[l][k];
+                        universo[j].v[l] += universo[k].v[l];
                         //cout << "Velocidad " << l << " nueva de asteroide " << j << " " << universo.v[l][j] << endl;
-                        //destruccion del segundo objeto
-                        universo.p[l].erase(universo.p[l].begin()+k);
-                        universo.v[l].erase(universo.v[l].begin()+k);
                     }
-                    universo.m.erase(universo.m.begin()+k);
+                    //destruccion del segundo objeto
+                    universo.erase(universo.begin()+k);
                     //Se echa hacia atrás el contador k para no saltarse un asteroide
                     k --;
                     //cout << "Numero total de asteroides " << universo.p[0].size() << endl;
@@ -88,7 +86,7 @@ void colisiones(struct objetos &universo)
     }
 }
 
-void guardarDatos(struct objetos &datos, string archivo, double size_enclosure, double time_step, int num_objects)
+void guardarDatos(vector<objeto> &datos, string archivo, double size_enclosure, double time_step, int num_objects)
 {
     ofstream Resultados(archivo);
 
@@ -99,17 +97,17 @@ void guardarDatos(struct objetos &datos, string archivo, double size_enclosure, 
     Resultados << size_enclosure << " " << time_step << " " << num_objects << endl;
 
     //Cuerpo
-    for (long unsigned int i = 0; i < datos.p[0].size(); i++){
+    for (long unsigned int i = 0; i < datos.size(); i++){
         //Posiciones
         for(int j = 0; j < 3; j++){
-            Resultados << datos.p[j][i] << " ";
+            Resultados << datos[i].p[j] << " ";
         }
         //Velocidades
         for(int j = 0; j < 3; j++){
-            Resultados << datos.v[j][i] << " ";
+            Resultados << datos[i].v[j] << " ";
         }
         //Masa
-        Resultados << datos.m[i] << endl;
+        Resultados << datos[i].m << endl;
     }
 
     //se cierra el archivo
@@ -125,16 +123,18 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
     normal_distribution<> disMas{10e21, 10e15}; //Distribucion para generar las masas
 
     //elementos
-    struct objetos universo;
+    vector<objeto> universo;
 
     //se generan de forma aleatoria los elementos
     for(int i = 0; i < num_objects; i++){
+        objeto Obj;
         //posiciones y velocidades
         for(int j = 0; j < 3; j++){
-            universo.p[j].push_back(disPos(gen64));//Se inicializan las posiciones de forma aleatoria
-            universo.v[j].push_back(0.0);//Se inicializan a 0 las velocidades
+            Obj.p[j] = disPos(gen64);//Se inicializan las posiciones de forma aleatoria
+            Obj.v[j] = 0.0;//Se inicializan a 0 las velocidades
         }
-        universo.m.push_back(disMas(gen64)/10.0);//Se inicializan las masas de forma aleatoria
+        Obj.m = disMas(gen64)/10.0;//Se inicializan las masas de forma aleatoria
+        universo.push_back(Obj);
     }
 
     //comprobar si hay colisiones
@@ -149,40 +149,42 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
         //cout << "Iteracion " << i << endl;
 
         //se crea la siguiente iteracion
-        struct objetos newIt;
+        vector<objeto> newIt;
 
         //cout << "Creado nuevo universo" << endl;
 
-        for (long unsigned int j = 0; j < universo.p[0].size(); j++){
+        for (long unsigned int j = 0; j < universo.size(); j++){
             //cout << "Calculando vector de aceleracion de asteroide " << j << endl;
             //Calculo del vector aceleracion
             vector<double> aceleracion(3, 0.0);
             //cout <<  endl;
-            vectorAceleracion(universo.p[0][j], universo.p[1][j], universo.p[2][j], universo.m[j], universo, aceleracion);
+            vectorAceleracion(universo[j].p[0], universo[j].p[1], universo[j].p[2], universo[j].m, universo, aceleracion);
             //cout <<  endl;
             //cout << "Vector aceleracion calculado" << endl;
             //Calculo de las nuevas velocidades y posiciones en los 3 ejes
+            objeto Obj;
             for(int k = 0; k < 3; k++){
-                newIt.v[k].push_back(universo.v[k][j] + aceleracion[k]*time_step);
+                Obj.v[k] = universo[j].v[k] + aceleracion[k]*time_step;
                 //cout << "Nueva aceleracion " << k << " de asteroide " << j << " " << aceleracion[k] << endl;
                 //cout << "Nueva velocidad " << k << " de asteroide " << j << " " << newIt.v[k][j] << endl;
-                newIt.p[k].push_back(universo.p[k][j] + newIt.v[k][j]*time_step);
+                Obj.p[k] = universo[j].p[k] + Obj.v[k]*time_step;
                 //cout << "Nueva posicion " << k << " de asteroide " << j << " " << newIt.p[k][j] << endl;
                 //cout << "Calculando rebotes" << endl;
                 //Calculo de rebotes
-                if(newIt.p[k][j] < 0.0){
-                    newIt.p[k][j] = 0.0;
-                    newIt.v[k][j] *= -1.0;
+                if(Obj.p[k] < 0.0){
+                    Obj.p[k] = 0.0;
+                    Obj.v[k] *= -1.0;
                 }
-                if(newIt.p[k][j] > size_enclosure){
-                    newIt.p[k][j] = size_enclosure;
-                    newIt.v[k][j] *= -1.0;
+                if(Obj.p[k] > size_enclosure){
+                    Obj.p[k] = size_enclosure;
+                    Obj.v[k] *= -1.0;
                 }
                 //cout << "rebotes calculados" << endl;
             }
             //cout << "Nueva masa de asteroide " << j << " " << universo.m[j] << endl;;
             //Cargar las masas en la nueva iteracion
-            newIt.m.push_back(universo.m[j]);
+            Obj.m = universo[j].m;
+            newIt.push_back(Obj);
         }
         //cout << "Calculando colisiones" << endl;
         //Calculo de colisiones
@@ -195,7 +197,7 @@ void simulation(int num_objects, int num_iterations, int random_seed, double siz
         //cout << "Universo actualizado" << endl;
     }
     //Almacenar configuracion final
-    guardarDatos(universo, "final_config.txt", size_enclosure, time_step, int(universo.p[0].size()));
+    guardarDatos(universo, "final_config.txt", size_enclosure, time_step, int(universo.size()));
 }
 
 int main(int argc, char *argv[])
